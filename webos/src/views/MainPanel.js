@@ -253,7 +253,7 @@ class MainPanel extends React.Component {
 					pigImage: '',
 					mvpdIcon: '',
 					showPopup: true,
-					label: 'Magic4PC',
+					label: 'Magic4Android TV',
 				},
 				onSuccess: (resp) => {
 					this.setState({autostartEnabled: evt.selected});
@@ -399,6 +399,7 @@ class MainPanel extends React.Component {
 						<Button onClick={this.handleOpenPopup} icon="gear" />
 					) : null}
 					<Popup open={this.state.popupOpen} onClose={this.handleClosePopup}>
+						<p>Magic4Android TV</p>
 						<div>
 							<p id="status">{this.state.label}</p>
 						</div>

@@ -1,7 +1,7 @@
 {
   "name": "magic4pc",
   "version": "1.0.0",
-  "description": "Control your PC with your TV remote",
+  "description": "AI-developed Magic4PC fork for controlling Android and Samsung DeX with an LG Magic Remote",
   "author": "",
   "main": "src/index.js",
   "scripts": {
@@ -29,7 +29,7 @@
     "chrome >= 38"
   ],
   "enact": {
-    "title": "Magic4PC",
+    "title": "Magic4Android TV",
     "theme": "sandstone"
   },
   "eslintConfig": {

@@ -1,43 +1,33 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
-name: Build & Test
-
+name: TV build
 on:
-  pull_request:
-    branches: [ master ]
   push:
-    paths:
-      - 'webos/**'
-
+    branches: [android-receiver]
+    paths: ['webos/**', '.github/workflows/main.yml']
+  pull_request:
+    paths: ['webos/**', '.github/workflows/main.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
-  webos-build:
+  build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./webos
-
-    strategy:
-      matrix:
-        node-version: [14.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
+        working-directory: webos
+    env:
+      NODE_OPTIONS: --openssl-legacy-provider
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-
-    - run: npm ci
-    - run: npm run build-p
-    - run: npm run package
-    - name: Archive built webOS app
-      uses: actions/upload-artifact@v3
-      with:
-        name: webos-app
-        path: |
-          webos/*.ipk
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: webos/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/sensor-recovery.test.cjs
+      - run: npm run build-p
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: magic4android-tv
+          path: webos/*.ipk

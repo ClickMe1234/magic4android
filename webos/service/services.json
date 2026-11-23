@@ -1,6 +1,6 @@
 {
 	"id": "me.wouterdek.magic4pc.service",
-	"description": "Magic4PC Service",
+	"description": "Magic4Android TV remote bridge, forked from Magic4PC",
 	"services": [
 		{
 			"name": "me.wouterdek.magic4pc.service"

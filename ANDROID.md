@@ -1,5 +1,10 @@
 # Magic4Android — experimental native receiver
 
+For complete Android/TV build and installation instructions, see [README.md](README.md).
+This fork's Android receiver and fork-specific TV changes were developed with
+OpenAI Codex under human direction and tested on the owner's hardware. Upstream
+Magic4PC attribution is preserved below and in the main README.
+
 Fork of Wouter De Keersmaecker's MIT-licensed Magic4PC. The original Windows
 client is retained; the webOS application includes input and recovery fixes.
 The `android/` module receives the same
@@ -49,8 +54,9 @@ Limitations:
 - Background persistence and Samsung battery-management behaviour need testing.
 - Upstream TV UDP traffic has no cryptographic authentication. Use only on a trusted
   home LAN; do not port-forward these services. Choosing an IP is not authentication.
-- The webOS code calls LG-specific external-video and remote-sensor services. Their
-  availability and permissions on C4 firmware must be verified in Developer Mode.
+- The webOS code calls LG-specific external-video and remote-sensor services.
+  These work on the rooted C4 used for testing; unrooted Developer Mode permissions
+  and other firmware/model combinations remain unverified.
 
 ## Build
 
@@ -67,7 +73,8 @@ The debug APK is for local testing, not a production release.
 
 1. Install the APK on the phone.
 2. Install this fork's matching webOS IPK using LG Developer Mode and open it on the TV.
-   Select the HDMI input connected to the phone's powered USB-C hub.
+   Its visible name is Magic4Android TV. Select the HDMI input connected to the
+   phone's powered USB-C hub. Only the rooted-TV installation path has been tested.
 3. Open Magic4Android and enable its service manually in Android Accessibility.
    This permits observing app UI and performing gestures; enable it only while
    you want this remote-control functionality. Disable the service to revoke access.
@@ -82,7 +89,7 @@ Protocol unit tests are synthetic and do not establish TV compatibility.
 
 ## Architecture
 
-MR24GA -> TV Bluetooth receiver -> original webOS app + service -> LAN UDP ->
+MR24GA -> TV Bluetooth receiver -> forked webOS app + service -> LAN UDP ->
 native Android receiver -> explicitly enabled Accessibility service -> target app.
 
 Phone video travels independently through USB-C HDMI to the TV. Upstream's

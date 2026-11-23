@@ -1,7 +1,7 @@
 {
   "name": "me.wouterdek.magic4pc.service",
   "version": "1.0.0",
-  "description": "Magic4PC service",
+  "description": "Magic4Android TV remote bridge, forked from Magic4PC",
   "main": "m4p_service.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

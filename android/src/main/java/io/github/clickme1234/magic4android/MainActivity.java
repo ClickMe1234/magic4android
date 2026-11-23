@@ -20,8 +20,8 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         ScrollView scroll=new ScrollView(this);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(32,64,32,32);scroll.addView(box);setContentView(scroll);
-        TextView title=new TextView(this);title.setText("Magic4Android · prototype");title.setTextSize(24);box.addView(title);
-        TextView help=new TextView(this);help.setText("Open Magic4PC on the LG TV and select the phone's HDMI input. Enable this service in Accessibility, then connect to your TV's local IP. The receiver runs on the phone; a PC is not required during use.\n\nPointer = cyan dot; OK/red = click; wheel = scroll; arrows = accessible focus; Back/green = Android Back. Some apps and DeX may reject inputs. This is not a game controller. Stop when finished.\n");box.addView(help);
+        TextView title=new TextView(this);title.setText("Magic4Android · experimental");title.setTextSize(24);box.addView(title);
+        TextView help=new TextView(this);help.setText("Open Magic4Android TV on the LG TV and select the phone's HDMI input. Enable this service in Accessibility, then connect to your TV's local IP. The receiver runs on the phone; a PC is not required during use.\n\nPointer = cyan dot; OK/red = click; wheel = scroll; arrows = accessible focus; Back/green = Android Back. Some apps and DeX may reject inputs. This is not a game controller. Stop when finished.\n");box.addView(help);
         var prefs=getPreferences(0);
         EditText ip=field(box,"TV IPv4 address",prefs.getString("tv",""));ip.setInputType( android.text.InputType.TYPE_CLASS_PHONE);
         TextView scaling=new TextView(this);scaling.setText("Pointer scaling follows your selected display automatically, including 4K output.");box.addView(scaling);
