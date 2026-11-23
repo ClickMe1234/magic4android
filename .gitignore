@@ -4,3 +4,7 @@
 local.properties
 *.apk
 *.jks
+**/node_modules/
+webos/dist/
+*.log
+*.ipk
