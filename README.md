@@ -59,7 +59,7 @@ Tested during development on **23 November 2026**:
 | TV | LG C4 OLED42C44LA, rooted, webOS SDK 9.2.4 |
 | Remote | LG MR24GA |
 | Video | DeX at 1080p/60 Hz and 4K/60 Hz through a powered Anker hub |
-| Apps tried | ATV Launcher Pro, Plex, Daijishō and PPSSPP; feature support varies |
+| Remote input exercised | ATV Launcher Pro and Plex; not exhaustive app testing |
 
 Physical pointer movement and red/OK clicks were confirmed. Back/arrows were exercised through the running TV app and on-device apps; the owner reports that arrows mostly work but remain imperfect. 4K scaling, idle hiding and complete-circle rendering at edges were checked on-device. **Unrooted TV permissions, other models, unattended restart recovery and long-term background reliability are not established.** See [VALIDATION.md](VALIDATION.md).
 
@@ -175,11 +175,12 @@ Keep iLib asset emission enabled in the Webpack configuration. Missing locale as
 
 Follow LG's [Developer Mode setup](https://webostv.developer.lge.com/develop/getting-started/developer-mode-app) or the [webOS Homebrew environment guide](https://www.webosbrew.org/develop/guides/env-setup/) for an already-rooted TV. Developer Mode sessions must remain valid. Only the rooted C4 path has been tested here; installation does not establish access to LG's sensor/external-video services elsewhere.
 
-From `webos/`, use the bundled CLI (PowerShell can use `npx.cmd`):
+The older CLI bundled with the project is used for reproducible packaging. For TV installation and Developer Mode key retrieval, install LG's [current webOS CLI](https://github.com/webos-tools/cli), which includes `ares-novacom`. Follow its migration guidance if an older webOS CLI is already installed globally. These commands use the global CLI, not `npx`'s project-local copy. In PowerShell, use the `.cmd` variants if script execution is restricted (`npm.cmd`, `ares-config.cmd`, and so on).
 
 ```sh
-npx --no-install ares-config --profile tv
-npx --no-install ares-setup-device
+npm install --global @webos-tools/cli
+ares-config --profile tv
+ares-setup-device
 ```
 
 Create a target such as `livingroom` with your TV's address and authentication. Developer Mode uses the `prisoner` user, port 9922 and the Key Server/key-passphrase steps in LG's guide. A rooted TV uses its configured root SSH connection instead.
@@ -187,17 +188,17 @@ Create a target such as `livingroom` with your TV's address and authentication. 
 For a Developer Mode target, retrieve its key when LG's instructions direct you to:
 
 ```sh
-npx --no-install ares-novacom --device livingroom --getkey
+ares-novacom --device livingroom --getkey
 ```
 
 Install and launch:
 
 ```sh
-npx --no-install ares-install --device livingroom me.wouterdek.magic4pc_1.0.0_all.ipk
-npx --no-install ares-launch --device livingroom me.wouterdek.magic4pc
+ares-install --device livingroom me.wouterdek.magic4pc_1.0.0_all.ipk
+ares-launch --device livingroom me.wouterdek.magic4pc
 ```
 
-See the [webOS CLI guide](https://webostv.developer.lge.com/develop/tools/cli-dev-guide) for device configuration and troubleshooting. Keep root credentials, pairing keys and signing keys outside the repository.
+Run the install command from `webos/`, or supply the IPK's full path. See the [webOS CLI guide](https://webostv.developer.lge.com/develop/tools/cli-dev-guide) for device configuration and troubleshooting. Keep root credentials, pairing keys and signing keys outside the repository.
 
 ## Connect and use
 

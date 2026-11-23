@@ -56,6 +56,13 @@ Local validation on Windows 11, JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36:
   inside display edges while keeping gesture coordinates unchanged. At the 4K
   bottom-right corner, screenshot pixels show a complete, symmetric 16x16 cyan
   circle padded inside its 24x24 overlay. Build, eleven JVM tests and lint pass.
+- Branding/documentation update: Android is Magic4Android and the TV app's visible
+  name is Magic4Android TV; application/service IDs remain compatible. Fresh npm
+  install, TV production build, IPK packaging and runtime asset checks passed on
+  Windows Node 24.18.0/npm 11.16.0. Android's eleven tests, lint and APK build pass.
+  Both GitHub workflows passed for code commit 738c414, including the repaired TV
+  build with Node 24 and supported artifact upload. This is build verification;
+  the renamed builds have not been installed on the test devices in this update.
 
 Not validated: physical remote navigation reliability after this update, precise pointer
 alignment, background persistence, Wi-Fi reconnect, and reliable app navigation.
