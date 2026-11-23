@@ -17,9 +17,17 @@ Local validation on Windows 11, JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36:
   through the TV service opened the phone's display selector via Accessibility.
 - Moved UDP connect off the Android main thread after device testing exposed
   the connection failure. Rebuilt, reran protocol tests and lint, and installed.
+- External LG TV display verified at 1920x1080, 60Hz. HDMI appeared after the
+  phone-side USB-C connector was reversed; the reason for that sensitivity is unknown.
+- Selected the external DeX display and dismissed its welcome dialog with a
+  synthetic click through the TV service. User confirmed physical remote pointer
+  movement after Magic4PC was brought back to the foreground.
+- TV sensor subscriptions now retry after remote-not-ready failures, ignore
+  acknowledgement-only responses, and report last coordinates and sample time.
+  Three Node regression tests cover acknowledgement, recovery and stopped sessions.
 
-Not validated: physical Magic Remote sensor/button events, external DeX display mapping, pointer
+Not validated: physical remote clicks/scroll/navigation reliability, precise pointer
 alignment, background persistence, Wi-Fi reconnect, and reliable app navigation.
 
-The TV-side code is unchanged from upstream. Synthetic tests and successful APK
-installation are not evidence of end-to-end remote-control compatibility.
+The TV side includes sensor recovery changes. A successful pointer test does not
+establish complete remote-control compatibility across Android apps.

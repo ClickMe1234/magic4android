@@ -18,6 +18,7 @@ jobs:
         with:
           packages: platform-tools
       - run: chmod +x gradlew
+      - run: node --test webos/test/sensor-recovery.test.cjs
       - run: ./gradlew :android:testDebugUnitTest :android:lintDebug :android:assembleDebug
       - uses: actions/upload-artifact@v4
         with:

@@ -49,6 +49,9 @@ const clientTimeout = 3000;
 const sendKeepaliveFrequency = 1000;
 var unicastClient = null;
 var unicastRInfo = null;
+var sensorStatus = 'Not subscribed';
+var lastSensorAt = 0;
+var lastCoordinate = null;
 function startUnicastingData(client, rinfo, request) {
 	unicastDataActive = true;
 	unicastClient = client;
@@ -117,24 +120,47 @@ function startUnicastingData(client, rinfo, request) {
 	var lastUpdateTs = Date.now();
 
 	var setupSensorSubscription = function () {
+		if (!unicastDataActive || unicastClient !== client) return;
+		sensorStatus = 'Subscribing';
+		var retryScheduled = false;
 		var subscriptionHandle = service.subscribe(
 			'luna://com.webos.service.mrcu/sensor/getSensorData',
 			options
 		);
+		var retrySubscription = function () {
+			if (retryScheduled) return;
+			retryScheduled = true;
+			subscriptionHandle.cancel();
+			setTimeout(function () {
+				if (unicastDataActive && unicastClient === client) setupSensorSubscription();
+			}, 1000);
+		};
 		subscriptionHandle.on('response', function (inResponse) {
+			if (retryScheduled) return;
 			if (!unicastDataActive) {
 				subscriptionHandle.cancel();
 				client.close();
 				client = null;
 				return;
 			}
+			var data = inResponse.payload;
+			if (!data || data.returnValue === false) {
+				sensorStatus = data && data.errorText ? data.errorText : 'Sensor response failed';
+				retrySubscription();
+				return;
+			}
+			// Subscription acknowledgements have no coordinates and are not sensor samples.
+			if (!data.coordinate) return;
+			sensorStatus = 'Receiving';
+			lastSensorAt = Date.now();
+			lastCoordinate = data.coordinate;
 			if (Date.now() - lastUpdateTs < 1000 / settings.updateFrequency) {
 				return true;
 			}
 
 			var payloadData = '';
 			try {
-				payloadData = buildUpdatePayload(inResponse.payload, settings).toString(
+				payloadData = buildUpdatePayload(data, settings).toString(
 					'base64'
 				);
 			} catch (ex) {
@@ -156,7 +182,7 @@ function startUnicastingData(client, rinfo, request) {
 			if (!unicastDataActive) {
 				return;
 			}
-			setupSensorSubscription();
+			retrySubscription();
 		});
 	};
 	setupSensorSubscription();
@@ -398,5 +424,8 @@ service.register('query', function (message) {
 		broadcastAdsActive: broadcastAdsActive,
 		isConnected: unicastDataActive,
 		unicastRInfo: unicastDataActive ? unicastRInfo : null,
+		sensorStatus: sensorStatus,
+		lastSensorAt: lastSensorAt,
+		lastCoordinate: lastCoordinate,
 	});
 });
