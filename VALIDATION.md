@@ -51,6 +51,11 @@ Local validation on Windows 11, JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36:
 - Idle pointer: installed update and verified overlay visible on remote input,
   invisible after six seconds without interaction (five-second timer), and visible
   again on the next input while the network connection remained active.
+- Replaced text-glyph pointer with an antialiased drawn circle, independent of
+  Android text scaling (device reported fontScale=2). Clamp the overlay canvas
+  inside display edges while keeping gesture coordinates unchanged. At the 4K
+  bottom-right corner, screenshot pixels show a complete, symmetric 16x16 cyan
+  circle padded inside its 24x24 overlay. Build, eleven JVM tests and lint pass.
 
 Not validated: physical remote navigation reliability after this update, precise pointer
 alignment, background persistence, Wi-Fi reconnect, and reliable app navigation.

@@ -5,12 +5,13 @@ import android.content.Context;
 import android.graphics.Path;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.hardware.display.DisplayManager;
 import android.os.*;
 import android.util.DisplayMetrics;
 import android.view.*;
 import android.view.accessibility.*;
-import android.widget.TextView;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
@@ -24,7 +25,7 @@ public class RemoteAccessibilityService extends AccessibilityService {
     private int displayId,sourceWidth=1920,sourceHeight=1080,width,height;
     private float x,y;
     private WindowManager manager;
-    private TextView pointer;
+    private View pointer;
     private WindowManager.LayoutParams layout;
     private boolean gestureBusy;
     private long lastClick;
@@ -84,8 +85,14 @@ public class RemoteAccessibilityService extends AccessibilityService {
         removePointer();displayId=display.getDisplayId();width=0;height=0;
         Context context=createDisplayContext(display);
         manager=(WindowManager)context.getSystemService(WINDOW_SERVICE);
-        pointer=new TextView(context);pointer.setText("●");pointer.setTextSize(22);pointer.setTextColor(Color.CYAN);
-        layout=new WindowManager.LayoutParams(40,40,WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        pointer=new View(context) {
+            private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
+            @Override protected void onDraw(Canvas canvas) {
+                super.onDraw(canvas);paint.setColor(Color.CYAN);
+                canvas.drawCircle(getWidth()/2f,getHeight()/2f,Math.min(getWidth(),getHeight())/2f-4,paint);
+            }
+        };
+        layout=new WindowManager.LayoutParams(24,24,WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,android.graphics.PixelFormat.TRANSLUCENT);
         layout.gravity=Gravity.TOP|Gravity.LEFT;manager.addView(pointer,layout);
         updateOutputSize(display);
@@ -119,7 +126,15 @@ public class RemoteAccessibilityService extends AccessibilityService {
     private void position(int sx,int sy) {
         lastSourceX=sx;lastSourceY=sy;hasSourcePosition=true;
         x=Protocol.scale(sx,sourceWidth,width);y=Protocol.scale(sy,sourceHeight,height);
-        if(pointer!=null) {layout.x=(int)x;layout.y=(int)y;manager.updateViewLayout(pointer,layout);}
+        updatePointerLayout();
+    }
+    private void updatePointerLayout() {
+        if(pointer==null)return;
+        // Centre the indicator on the touch position and keep its full canvas
+        // inside the screen at the edges. Click coordinates remain unchanged.
+        layout.x=Math.max(0,Math.min(width-layout.width,Math.round(x)-layout.width/2));
+        layout.y=Math.max(0,Math.min(height-layout.height,Math.round(y)-layout.height/2));
+        manager.updateViewLayout(pointer,layout);
     }
     private void gesture(float toY,long duration) {
         if(gestureBusy) return;
@@ -167,7 +182,7 @@ public class RemoteAccessibilityService extends AccessibilityService {
         if(accepted) {
             navigationFocus=node;
             Rect r=bounds(node);x=Math.max(0,Math.min(width-1,r.exactCenterX()));y=Math.max(0,Math.min(height-1,r.exactCenterY()));
-            layout.x=(int)x;layout.y=(int)y;manager.updateViewLayout(pointer,layout);
+            updatePointerLayout();
             android.util.Log.i("Magic4Android","Directional focus on display "+displayId+": "+r);
         }
         return accepted;
