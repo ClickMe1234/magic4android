@@ -17,6 +17,9 @@ class MainPanel extends React.Component {
 		this.onButton = this.onButton.bind(this);
 		this.onButtonDown = this.onButtonDown.bind(this);
 		this.onButtonUp = this.onButtonUp.bind(this);
+		this.onMouse = this.onMouse.bind(this);
+		this.onWheel = this.onWheel.bind(this);
+		this.directionalMode = false;
 		this.stopService = this.stopService.bind(this);
 		this.autostartToggle = this.autostartToggle.bind(this);
 		this.queryServiceStatus = this.queryServiceStatus.bind(this);
@@ -76,11 +79,31 @@ class MainPanel extends React.Component {
 	}
 
 	onButtonDown(event) {
+		if (this.state.popupOpen) {
+			if (event.keyCode === 461) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				this.handleClosePopup();
+			}
+			return;
+		}
+		if ([13, 37, 38, 39, 40, 403, 404, 461].includes(event.keyCode)) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+		}
+		if (event.keyCode >= 37 && event.keyCode <= 40) this.directionalMode = true;
+		if (event.keyCode === 1536) this.directionalMode = false;
+		if (event.keyCode === 461 && event.repeat) return;
 		console.log(event.keyCode + ' down');
 		this.onButton(event.keyCode, true);
 	}
 
 	onButtonUp(event) {
+		if (this.state.popupOpen) return;
+		if ([13, 37, 38, 39, 40, 403, 404, 461].includes(event.keyCode)) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+		}
 		console.log(event.keyCode + ' up');
 		this.onButton(event.keyCode, false);
 	}
@@ -150,10 +173,15 @@ class MainPanel extends React.Component {
 
 	onCursorVisibilityChange(e) {
 		let isVisible = e.detail.visibility;
+		if (isVisible) {
+			this.directionalMode = false;
+			this.onButton(1536, true);
+		}
 		this.setState({settingsButtonVisible: isVisible});
 	}
 
 	onMouse(e) {
+		if (this.state.popupOpen || this.directionalMode || e.target.closest('[role="button"],button')) return;
 		console.log(e.type);
 
 		new LS2Request().send({
@@ -168,6 +196,7 @@ class MainPanel extends React.Component {
 	}
 
 	onWheel(e) {
+		if (this.state.popupOpen) return;
 		console.log('wheel', e.wheelDelta > 0 ? 'up' : 'down');
 
 		new LS2Request().send({
@@ -182,8 +211,8 @@ class MainPanel extends React.Component {
 	}
 
 	componentDidMount() {
-		document.addEventListener('keydown', this.onButtonDown, false);
-		document.addEventListener('keyup', this.onButtonUp, false);
+		window.addEventListener('keydown', this.onButtonDown, true);
+		window.addEventListener('keyup', this.onButtonUp, true);
 		document.addEventListener(
 			'visibilitychange',
 			this.onVisibilityChange,
@@ -198,6 +227,7 @@ class MainPanel extends React.Component {
 		document.addEventListener('mouseup', this.onMouse, false);
 		document.addEventListener('wheel', this.onWheel, false);
 		this.loadSettings();
+		this.startService();
 
 		new LS2Request().send({
 			service: 'luna://com.webos.service.eim/',
@@ -250,8 +280,11 @@ class MainPanel extends React.Component {
 	}
 
 	componentWillUnmount() {
-		document.removeEventListener('keydown', this.onButtonPress, false);
-		document.removeEventListener('keyup', this.onButtonPress, false);
+		window.removeEventListener('keydown', this.onButtonDown, true);
+		window.removeEventListener('keyup', this.onButtonUp, true);
+		document.removeEventListener('mousedown', this.onMouse, false);
+		document.removeEventListener('mouseup', this.onMouse, false);
+		document.removeEventListener('wheel', this.onWheel, false);
 		document.removeEventListener(
 			'visibilitychange',
 			this.onVisibilityChange,

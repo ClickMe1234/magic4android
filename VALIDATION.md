@@ -29,8 +29,17 @@ Local validation on Windows 11, JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36:
   because the build omitted iLib locale assets. Enabled asset emission, rebuilt
   and installed. Verified the rendered app root and HDMI video readyState=4,
   error=null, source HDMI 1. Packaging now rejects missing iLib runtime assets.
+- Navigation update: ten JVM tests pass (six protocol, four spatial navigation),
+  APK build and Android lint pass, and TV rebuild/package asset checks pass.
+  Both updated packages installed on the test devices.
+- Injected DOM key events into the running TV web app (not directly into Android):
+  arrows moved focus across ATV app tiles and between widgets/app grid; OK opened
+  Plex on display 32; Back returned from Plex to ATV while Magic4PC stayed visible.
+  TV navigation events were default-prevented and no web runtime errors occurred.
+- DeX caption windows, missing initial focus, virtual-list focus and focus zoom
+  animation are handled by target-window selection and spatial fallback.
 
-Not validated: physical remote clicks/scroll/navigation reliability, precise pointer
+Not validated: physical remote navigation reliability after this update, precise pointer
 alignment, background persistence, Wi-Fi reconnect, and reliable app navigation.
 
 The TV side includes sensor recovery changes. A successful pointer test does not

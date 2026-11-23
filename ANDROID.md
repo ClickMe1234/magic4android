@@ -1,13 +1,15 @@
 # Magic4Android — experimental native receiver
 
-Fork of Wouter De Keersmaecker's MIT-licensed Magic4PC. The original Windows client
-and webOS application remain intact. The new `android/` module receives the same
+Fork of Wouter De Keersmaecker's MIT-licensed Magic4PC. The original Windows
+client is retained; the webOS application includes input and recovery fixes.
+The `android/` module receives the same
 UDP protocol directly on an Android 11+ device. No PC relay or Bluetooth sniffer is
 required by this design during use.
 
 ## Current scope
 
-This is a prototype, **not confirmed compatible with the LG C4/MR24GA or DeX**.
+This is a prototype. Basic pointer and click operation has been tested on an LG
+C4/MR24GA with an S22 Ultra's DeX display; complete app compatibility is not implied.
 It requests Android Accessibility access explicitly; no root, firmware changes,
 shell input permission, or automatic Accessibility enabling is used.
 
@@ -18,15 +20,21 @@ Implemented:
 - Only the explicitly selected TV endpoint is accepted by the connected socket.
 - Coordinate-only sensor subscription, little-endian payload decoding and scaling.
 - Cyan pointer overlay and taps/scroll gestures on the chosen Android display.
-- OK and arrows through accessible app focus, red for pointer click,
-  Back/green for Android global Back.
+- Arrows select visible accessible controls, with spatial fallback and scrolling
+  at boundaries. OK activates that selection; waking the TV pointer returns to
+  point-and-click. Red always clicks at the cyan dot.
+- Back/green invoke Android Back when the selected display has input focus.
+- TV captures navigation keys before its own UI, keeping Back inside Android.
+  When the TV settings popup is open, arrows operate that popup and Back closes it.
 - Explicit Connect/Stop controls; Stop closes the socket and removes the pointer.
 
 Limitations:
 
 - Android Accessibility cannot inject arbitrary hardware keys or gamepad events.
   Directional focus works only where an app exposes focusable accessibility nodes.
-- Global Back is Android's system action; targeting the correct DeX app is untested.
+- Back is Android's global action. Click the desired TV app first if you have
+  been using the phone screen; the receiver refuses Back when another display is
+  focused, to avoid navigating the wrong screen.
 - The cyan pointer represents touch coordinates, not Android's native mouse cursor.
   Continuous native hover, dragging, long presses, media-key injection and gaming
   button holds are not implemented.
@@ -53,7 +61,7 @@ The debug APK is for local testing, not a production release.
 ## Setup / validation
 
 1. Install the APK on the phone.
-2. Install upstream's webOS IPK using LG Developer Mode and open it on the TV.
+2. Install this fork's matching webOS IPK using LG Developer Mode and open it on the TV.
    Select the HDMI input connected to the phone's powered USB-C hub.
 3. Open Magic4Android and enable its service manually in Android Accessibility.
    This permits observing app UI and performing gestures; enable it only while
@@ -63,7 +71,8 @@ The debug APK is for local testing, not a production release.
    Daijishou and Plex. Check cursor alignment at all four corners.
 6. Test Stop, TV app closure, Wi-Fi loss/reconnect, phone restart and display unplug.
 
-Without the TV app running there should be no input; status should show connecting.
+Keep the TV app foreground for button forwarding. Its service may keep sending
+pointer samples in the background, but ordinary HDMI mode does not forward buttons.
 Protocol unit tests are synthetic and do not establish TV compatibility.
 
 ## Architecture

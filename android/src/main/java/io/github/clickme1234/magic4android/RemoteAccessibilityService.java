@@ -4,6 +4,7 @@ import android.accessibilityservice.*;
 import android.content.Context;
 import android.graphics.Path;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.os.*;
 import android.util.DisplayMetrics;
@@ -11,6 +12,7 @@ import android.view.*;
 import android.view.accessibility.*;
 import android.widget.TextView;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 
 public class RemoteAccessibilityService extends AccessibilityService {
     private static volatile WeakReference<RemoteAccessibilityService> current=new WeakReference<>(null);
@@ -26,6 +28,8 @@ public class RemoteAccessibilityService extends AccessibilityService {
     private boolean gestureBusy;
     private long lastClick;
     private volatile int generation;
+    private boolean directionalMode;
+    private AccessibilityNodeInfo navigationFocus;
 
     @Override public void onServiceConnected() { current=new WeakReference<>(this);status="Ready — choose TV and display, then Connect"; }
     public void connect(String tv,int targetDisplay,int tvWidth,int tvHeight) throws Exception {
@@ -51,7 +55,7 @@ public class RemoteAccessibilityService extends AccessibilityService {
         } catch(Exception error) {stop();throw error;}
     }
     public void stop() {
-        generation++;client.close();main.removeCallbacksAndMessages(null);gestureBusy=false;
+        generation++;client.close();main.removeCallbacksAndMessages(null);gestureBusy=false;pointerMode();
         if(pointer!=null) {try{manager.removeView(pointer);}catch(Exception ignored){}pointer=null;}
         status="Stopped";
     }
@@ -78,36 +82,94 @@ public class RemoteAccessibilityService extends AccessibilityService {
     private AccessibilityNodeInfo root() {
         var windows=getWindowsOnAllDisplays().get(displayId);
         if(windows==null)return null;
+        AccessibilityWindowInfo best=null;
         for(AccessibilityWindowInfo window:windows) {
-            if(window.getDisplayId()==displayId && window.getType()==AccessibilityWindowInfo.TYPE_APPLICATION && window.getRoot()!=null) return window.getRoot();
+            if(window.getDisplayId()!=displayId || window.getType()!=AccessibilityWindowInfo.TYPE_APPLICATION || window.getRoot()==null)continue;
+            // DeX exposes a separate, unnamed caption-bar window above app content.
+            boolean named=window.getTitle()!=null && window.getTitle().length()>0;
+            boolean bestNamed=best!=null && best.getTitle()!=null && best.getTitle().length()>0;
+            if(best==null || (window.isFocused() && !best.isFocused()) ||
+                (window.isFocused()==best.isFocused() && (named && !bestNamed || named==bestNamed && window.getLayer()>best.getLayer())))best=window;
         }
-        return null;
+        return best==null?null:best.getRoot();
+    }
+    private Rect bounds(AccessibilityNodeInfo node) {Rect r=new Rect();node.getBoundsInScreen(r);return r;}
+    private FocusNavigator.Box box(AccessibilityNodeInfo node) {Rect r=bounds(node);return new FocusNavigator.Box(r.left,r.top,r.right,r.bottom);}
+    private boolean usable(AccessibilityNodeInfo node) {return node!=null && node.isVisibleToUser() && node.isEnabled() && (node.isFocusable() || node.isClickable()) && !bounds(node).isEmpty();}
+    private void collect(AccessibilityNodeInfo node,ArrayList<AccessibilityNodeInfo> choices,int[] budget) {
+        if(node==null || --budget[0]<0)return;
+        int before=choices.size();
+        for(int i=0;i<node.getChildCount() && budget[0]>0;i++)collect(node.getChild(i),choices,budget);
+        if(choices.size()==before && usable(node))choices.add(node);
+    }
+    private boolean focus(AccessibilityNodeInfo node) {
+        if(!usable(node))return false;
+        boolean accepted=node.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+        if(!accepted)accepted=node.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS);
+        if(accepted) {
+            navigationFocus=node;
+            Rect r=bounds(node);x=Math.max(0,Math.min(width-1,r.exactCenterX()));y=Math.max(0,Math.min(height-1,r.exactCenterY()));
+            layout.x=(int)x;layout.y=(int)y;manager.updateViewLayout(pointer,layout);
+            android.util.Log.i("Magic4Android","Directional focus on display "+displayId+": "+r);
+        }
+        return accepted;
     }
     private void navigate(int key) {
         AccessibilityNodeInfo root=root();if(root==null){status="No accessible app on selected display";return;}
-        AccessibilityNodeInfo focused=root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+        // Some virtual controls leave input focus on their enclosing list. Retain
+        // the selected control so subsequent arrows and OK act on that item.
+        AccessibilityNodeInfo focused=navigationFocus;
+        if(focused!=null && (focused.getWindowId()!=root.getWindowId() || !focused.refresh() || !usable(focused)))focused=null;
+        if(focused==null)focused=root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
         if(focused==null)focused=root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY);
         if(key==13) {
             if(focused==null || !focused.performAction(AccessibilityNodeInfo.ACTION_CLICK))click();
             return;
         }
         int direction=switch(key){case 37->View.FOCUS_LEFT;case 38->View.FOCUS_UP;case 39->View.FOCUS_RIGHT;default->View.FOCUS_DOWN;};
+        ArrayList<AccessibilityNodeInfo> choices=new ArrayList<>();collect(root,choices,new int[]{600});
         AccessibilityNodeInfo next=focused==null?null:focused.focusSearch(direction);
-        if(next!=null) {if(!next.performAction(AccessibilityNodeInfo.ACTION_FOCUS))next.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS);}
-        else status="App has no directional focus target; use pointer/wheel";
+        if(next!=null && !next.equals(focused) && choices.contains(next) && focus(next))return;
+        ArrayList<FocusNavigator.Box> boxes=new ArrayList<>();for(var node:choices)boxes.add(box(node));
+        boolean hasOrigin=usable(focused) && !focused.equals(root) && !bounds(focused).equals(bounds(root));
+        int selected=hasOrigin?FocusNavigator.next(boxes,box(focused),key):FocusNavigator.nearest(boxes,x,y);
+        android.util.Log.i("Magic4Android","Navigation candidates="+choices.size()+" origin="+(focused==null?"none":bounds(focused))+" selected="+selected);
+        if(selected>=0 && focus(choices.get(selected)))return;
+        // At a scroll boundary let the app expose the next page of controls.
+        int action=(key==37 || key==38)?AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD:AccessibilityNodeInfo.ACTION_SCROLL_FORWARD;
+        ArrayList<AccessibilityNodeInfo> pending=new ArrayList<>();pending.add(root);
+        for(int i=0;i<pending.size() && i<600;i++) {
+            var node=pending.get(i);if(node.isScrollable() && node.performAction(action))return;
+            for(int c=0;c<node.getChildCount() && pending.size()<600;c++){var child=node.getChild(c);if(child!=null)pending.add(child);}
+        }
+        status="No further accessible control in that direction";
     }
+    private void back() {
+        var windows=getWindowsOnAllDisplays().get(displayId);
+        boolean focused=false;
+        if(windows!=null)for(var window:windows)if(window.isFocused()){focused=true;break;}
+        if(!focused){status="Select an app on the TV with the pointer before using Back";return;}
+        boolean accepted=performGlobalAction(GLOBAL_ACTION_BACK);
+        navigationFocus=null;
+        android.util.Log.i("Magic4Android","Back accepted="+accepted+" on display "+displayId);
+        if(!accepted)status="Android rejected Back";
+    }
+    private void pointerMode(){directionalMode=false;navigationFocus=null;}
     private void handle(Protocol.Event e) {
         if(pointer==null)return;
         try {
             switch(e.type()) {
-                case "remote_update": position(e.x(),e.y());break;
-                case "mouseup": position(e.x(),e.y());click();break;
-                case "wheel": position(e.x(),e.y());gesture(y+(e.delta()>0?height*.25f:-height*.25f),200);break;
+                case "remote_update": if(!directionalMode)position(e.x(),e.y());break;
+                case "mouseup": pointerMode();position(e.x(),e.y());click();break;
+                case "wheel": pointerMode();position(e.x(),e.y());gesture(y+(e.delta()>0?height*.25f:-height*.25f),200);break;
                 case "input":
                     if(!e.down())break;
-                    if(e.key()==461 || e.key()==404)performGlobalAction(GLOBAL_ACTION_BACK);
-                    else if(e.key()==403)click();
-                    else if(e.key()==13 || (e.key()>=37 && e.key()<=40))navigate(e.key());
+                    android.util.Log.i("Magic4Android","Remote key "+e.key()+" for display "+displayId);
+                    if(e.key()==1536)pointerMode();
+                    else if(e.key()==461 || e.key()==404)back();
+                    else if(e.key()==403){pointerMode();click();}
+                    else if(e.key()==13){if(directionalMode)navigate(13);else click();}
+                    else if(e.key()>=37 && e.key()<=40){directionalMode=true;navigate(e.key());}
                     break;
             }
         } catch(Exception error){status="Input rejected: "+error.getMessage();}
