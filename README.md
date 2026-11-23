@@ -1,5 +1,9 @@
 # Magic4PC
 
+**Android fork:** This branch adds an experimental native Android receiver.
+See [ANDROID.md](ANDROID.md) for build instructions, permissions, setup and
+the current limitations. The original project description follows below.
+
 Allows you to use the magic remote on your webOS LG TV as a mouse for your PC.
 
 # Installing
