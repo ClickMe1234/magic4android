@@ -15,20 +15,20 @@ public final class RemoteClient implements AutoCloseable {
         InetAddress peer=InetAddress.getByName(address);
         if(!peer.isSiteLocalAddress() || peer.isLoopbackAddress()) throw new IllegalArgumentException("Use your TV's private home-network address");
         DatagramSocket active=new DatagramSocket();
-        active.connect(peer,42831);
         active.setSoTimeout(500);
         socket=active; running=true;
-        worker=new Thread(() -> run(active,listener),"Magic4Android-UDP"); worker.start();
+        worker=new Thread(() -> run(active,peer,listener),"Magic4Android-UDP"); worker.start();
     }
     private void send(DatagramSocket active,String wire) throws Exception {
         byte[] data=wire.getBytes(StandardCharsets.UTF_8);
         active.send(new DatagramPacket(data,data.length));
     }
-    private void run(DatagramSocket active,Listener listener) {
+    private void run(DatagramSocket active,InetAddress peer,Listener listener) {
         long lastReceived=0,lastSent=0;
         boolean subscribed=false;
         byte[] buffer=new byte[8193];
         try {
+            active.connect(peer,42831);
             listener.status("Connecting to TV…");
             while(running && socket==active) {
                 long now=System.nanoTime()/1_000_000;

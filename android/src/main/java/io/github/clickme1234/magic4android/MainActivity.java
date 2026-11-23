@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
                 if(service==null)throw new IllegalStateException("Enable Magic4Android in Accessibility first");
                 service.connect(ip.getText().toString().trim(),displays[display.getSelectedItemPosition()].getDisplayId(),Integer.parseInt(sw.getText().toString()),Integer.parseInt(sh.getText().toString()));
                 prefs.edit().putString("tv",ip.getText().toString().trim()).putString("sw",sw.getText().toString()).putString("sh",sh.getText().toString()).apply();
-            }catch(Exception error){RemoteAccessibilityService.status=error.getMessage();}
+            }catch(Exception error){RemoteAccessibilityService.status=error.toString();}
         });
         Button stop=new Button(this);stop.setText("Stop remote control");box.addView(stop);stop.setOnClickListener(v->{var service=RemoteAccessibilityService.current();if(service!=null)service.stop();});
         state=new TextView(this);state.setTextSize(18);box.addView(state);
