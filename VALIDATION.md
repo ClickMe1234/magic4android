@@ -25,6 +25,10 @@ Local validation on Windows 11, JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36:
 - TV sensor subscriptions now retry after remote-not-ready failures, ignore
   acknowledgement-only responses, and report last coordinates and sample time.
   Three Node regression tests cover acknowledgement, recovery and stopped sessions.
+- Diagnosed black TV app screen via its web inspector: I18nDecorator crashed
+  because the build omitted iLib locale assets. Enabled asset emission, rebuilt
+  and installed. Verified the rendered app root and HDMI video readyState=4,
+  error=null, source HDMI 1. Packaging now rejects missing iLib runtime assets.
 
 Not validated: physical remote clicks/scroll/navigation reliability, precise pointer
 alignment, background persistence, Wi-Fi reconnect, and reliable app navigation.

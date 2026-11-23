@@ -14,7 +14,7 @@
     "format": "prettier --write '**/*.{js,json}'",
     "license": "node ./scripts/license.js",
     "test": "node ./scripts/test.js",
-    "package": "ares-package -n dist/ service/",
+    "package": "node scripts/check-package.cjs && ares-package -n dist/ service/",
     "test-watch": "node ./scripts/test.js --watch",
     "manifest": "node ./scripts/gen-manifest.js me.wouterdek.magic4pc.manifest.json",
     "version": "node ./scripts/sync-version.js && git add webos-meta/appinfo.json"
