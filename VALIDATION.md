@@ -38,6 +38,16 @@ Local validation on Windows 11, JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36:
   TV navigation events were default-prevented and no web runtime errors occurred.
 - DeX caption windows, missing initial focus, virtual-list focus and focus zoom
   animation are handled by target-window selection and spatial fallback.
+- 4K scaling fix: device reports 3840x2160 at 60Hz while the TV web app reports
+  1920x1080. Legacy source-size preferences were 3840x2160, incorrectly limiting
+  movement to one quarter of the output. Removed manual source-size controls and
+  map the TV app's coordinate contract to the current target display dimensions.
+- Installed APK verified mapping TV (1919,1079) to Android overlay (3839,2159).
+  Temporarily changed logical output size to 1920x1080 and reset it; display
+  listener logged both transitions and restored 3840x2160 without reconnecting.
+  Eleven JVM tests and lint/build pass, including a full-4K endpoint regression.
+  Automatic reattachment after a physical/logical display replacement is implemented
+  but not yet exercised by an unplug/replug test.
 
 Not validated: physical remote navigation reliability after this update, precise pointer
 alignment, background persistence, Wi-Fi reconnect, and reliable app navigation.

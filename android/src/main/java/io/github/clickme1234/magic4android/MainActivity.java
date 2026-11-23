@@ -12,7 +12,7 @@ public class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private TextView state;
     private Display[] displays;
-    private final Runnable refresh=new Runnable(){public void run(){state.setText(RemoteAccessibilityService.status);handler.postDelayed(this,1000);}};
+    private final Runnable refresh=new Runnable(){public void run(){state.setText(RemoteAccessibilityService.status+"\n"+RemoteAccessibilityService.displayStatus);handler.postDelayed(this,1000);}};
     private EditText field(LinearLayout box,String hint,String value) {
         TextView label=new TextView(this);label.setText(hint);box.addView(label);
         EditText edit=new EditText(this);edit.setHint(hint);edit.setText(value);edit.setSingleLine();box.addView(edit);return edit;
@@ -24,8 +24,7 @@ public class MainActivity extends Activity {
         TextView help=new TextView(this);help.setText("Open Magic4PC on the LG TV and select the phone's HDMI input. Enable this service in Accessibility, then connect to your TV's local IP. The receiver runs on the phone; a PC is not required during use.\n\nPointer = cyan dot; OK/red = click; wheel = scroll; arrows = accessible focus; Back/green = Android Back. Some apps and DeX may reject inputs. This is not a game controller. Stop when finished.\n");box.addView(help);
         var prefs=getPreferences(0);
         EditText ip=field(box,"TV IPv4 address",prefs.getString("tv",""));ip.setInputType( android.text.InputType.TYPE_CLASS_PHONE);
-        EditText sw=field(box,"TV coordinate width",prefs.getString("sw","1920"));sw.setInputType(2);
-        EditText sh=field(box,"TV coordinate height",prefs.getString("sh","1080"));sh.setInputType(2);
+        TextView scaling=new TextView(this);scaling.setText("Pointer scaling follows your selected display automatically, including 4K output.");box.addView(scaling);
         displays=((DisplayManager)getSystemService(DISPLAY_SERVICE)).getDisplays();
         String[] choices=new String[displays.length];for(int i=0;i<displays.length;i++)choices[i]="Display "+displays[i].getDisplayId()+" · "+displays[i].getName();
         Spinner display=new Spinner(this);display.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,choices));box.addView(display);
@@ -34,8 +33,8 @@ public class MainActivity extends Activity {
             try {
                 var service=RemoteAccessibilityService.current();
                 if(service==null)throw new IllegalStateException("Enable Magic4Android in Accessibility first");
-                service.connect(ip.getText().toString().trim(),displays[display.getSelectedItemPosition()].getDisplayId(),Integer.parseInt(sw.getText().toString()),Integer.parseInt(sh.getText().toString()));
-                prefs.edit().putString("tv",ip.getText().toString().trim()).putString("sw",sw.getText().toString()).putString("sh",sh.getText().toString()).apply();
+                service.connect(ip.getText().toString().trim(),displays[display.getSelectedItemPosition()].getDisplayId());
+                prefs.edit().putString("tv",ip.getText().toString().trim()).remove("sw").remove("sh").apply();
             }catch(Exception error){RemoteAccessibilityService.status=error.toString();}
         });
         Button stop=new Button(this);stop.setText("Stop remote control");box.addView(stop);stop.setOnClickListener(v->{var service=RemoteAccessibilityService.current();if(service!=null)service.stop();});

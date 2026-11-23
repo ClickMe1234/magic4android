@@ -18,6 +18,7 @@ public class RemoteAccessibilityService extends AccessibilityService {
     private static volatile WeakReference<RemoteAccessibilityService> current=new WeakReference<>(null);
     public static RemoteAccessibilityService current() {return current.get();}
     public static volatile String status="Enable Accessibility access to connect";
+    public static volatile String displayStatus="";
     private final Handler main=new Handler(Looper.getMainLooper());
     private final RemoteClient client=new RemoteClient();
     private int displayId,sourceWidth=1920,sourceHeight=1080,width,height;
@@ -30,22 +31,27 @@ public class RemoteAccessibilityService extends AccessibilityService {
     private volatile int generation;
     private boolean directionalMode;
     private AccessibilityNodeInfo navigationFocus;
+    private DisplayManager displayManager;
+    private String targetDisplayName;
+    private boolean trackingDisplay,externalTarget,hasSourcePosition;
+    private int lastSourceX,lastSourceY;
+    private final DisplayManager.DisplayListener displayListener=new DisplayManager.DisplayListener() {
+        public void onDisplayAdded(int id){refreshTargetDisplay();}
+        public void onDisplayRemoved(int id){if(id==displayId){removePointer();refreshTargetDisplay();}}
+        public void onDisplayChanged(int id){if(id==displayId || pointer==null)refreshTargetDisplay();}
+    };
 
     @Override public void onServiceConnected() { current=new WeakReference<>(this);status="Ready — choose TV and display, then Connect"; }
-    public void connect(String tv,int targetDisplay,int tvWidth,int tvHeight) throws Exception {
+    public void connect(String tv,int targetDisplay) throws Exception {
         stop();
-        Display display=((DisplayManager)getSystemService(DISPLAY_SERVICE)).getDisplay(targetDisplay);
+        displayManager=(DisplayManager)getSystemService(DISPLAY_SERVICE);
+        Display display=displayManager.getDisplay(targetDisplay);
         if(display==null) throw new IllegalArgumentException("Selected display is disconnected");
-        if(tvWidth<2 || tvHeight<2) throw new IllegalArgumentException("Invalid TV coordinate size");
-        displayId=targetDisplay;sourceWidth=tvWidth;sourceHeight=tvHeight;
-        DisplayMetrics metrics=new DisplayMetrics();display.getRealMetrics(metrics);width=metrics.widthPixels;height=metrics.heightPixels;
-        Context context=createDisplayContext(display);
-        manager=(WindowManager)context.getSystemService(WINDOW_SERVICE);
-        pointer=new TextView(context);pointer.setText("●");pointer.setTextSize(22);pointer.setTextColor(Color.CYAN);
-        layout=new WindowManager.LayoutParams(40,40,WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,android.graphics.PixelFormat.TRANSLUCENT);
-        layout.gravity=Gravity.TOP|Gravity.LEFT;
-        manager.addView(pointer,layout);
+        // webOS Magic4PC uses a 1920x1080 UI/sensor space, independent of HDMI output.
+        sourceWidth=1920;sourceHeight=1080;
+        targetDisplayName=display.getName();externalTarget=targetDisplay!=Display.DEFAULT_DISPLAY;
+        attachDisplay(display);
+        trackingDisplay=true;displayManager.registerDisplayListener(displayListener,main);
         final int session=generation;
         try {
             client.start(tv,new RemoteClient.Listener() {
@@ -55,11 +61,52 @@ public class RemoteAccessibilityService extends AccessibilityService {
         } catch(Exception error) {stop();throw error;}
     }
     public void stop() {
+        trackingDisplay=false;
+        if(displayManager!=null)displayManager.unregisterDisplayListener(displayListener);
         generation++;client.close();main.removeCallbacksAndMessages(null);gestureBusy=false;pointerMode();
-        if(pointer!=null) {try{manager.removeView(pointer);}catch(Exception ignored){}pointer=null;}
-        status="Stopped";
+        removePointer();hasSourcePosition=false;displayStatus="";status="Stopped";
+    }
+    private void removePointer() {
+        if(pointer!=null){try{manager.removeView(pointer);}catch(Exception ignored){}pointer=null;}
+        navigationFocus=null;gestureBusy=false;
+    }
+    private void attachDisplay(Display display) {
+        removePointer();displayId=display.getDisplayId();width=0;height=0;
+        Context context=createDisplayContext(display);
+        manager=(WindowManager)context.getSystemService(WINDOW_SERVICE);
+        pointer=new TextView(context);pointer.setText("●");pointer.setTextSize(22);pointer.setTextColor(Color.CYAN);
+        layout=new WindowManager.LayoutParams(40,40,WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,android.graphics.PixelFormat.TRANSLUCENT);
+        layout.gravity=Gravity.TOP|Gravity.LEFT;manager.addView(pointer,layout);
+        updateOutputSize(display);
+    }
+    private void updateOutputSize(Display display) {
+        DisplayMetrics metrics=new DisplayMetrics();display.getRealMetrics(metrics);
+        if(metrics.widthPixels<2 || metrics.heightPixels<2)return;
+        if(width==metrics.widthPixels && height==metrics.heightPixels)return;
+        width=metrics.widthPixels;height=metrics.heightPixels;pointerMode();
+        displayStatus="Output: "+width+" × "+height;
+        android.util.Log.i("Magic4Android","Coordinate mapping: "+sourceWidth+"x"+sourceHeight+" -> "+width+"x"+height+" on display "+displayId);
+        if(hasSourcePosition)position(lastSourceX,lastSourceY);
+    }
+    private void refreshTargetDisplay() {
+        if(!trackingDisplay)return;
+        Display display=displayManager.getDisplay(displayId);
+        if(display!=null && pointer!=null){updateOutputSize(display);return;}
+        // DeX may replace the logical display when changing HDMI modes. Rebind
+        // only if exactly one display matches the previously selected target.
+        Display replacement=null;
+        for(Display candidate:displayManager.getDisplays()) {
+            if((candidate.getDisplayId()!=Display.DEFAULT_DISPLAY)==externalTarget && candidate.getName().equals(targetDisplayName)) {
+                if(replacement!=null){displayStatus="Multiple matching displays — reconnect to choose";return;}
+                replacement=candidate;
+            }
+        }
+        if(replacement==null){displayStatus="Waiting for TV display";return;}
+        try{attachDisplay(replacement);}catch(Exception error){removePointer();displayStatus="Display reconnect failed: "+error.getClass().getSimpleName();}
     }
     private void position(int sx,int sy) {
+        lastSourceX=sx;lastSourceY=sy;hasSourcePosition=true;
         x=Protocol.scale(sx,sourceWidth,width);y=Protocol.scale(sy,sourceHeight,height);
         if(pointer!=null) {layout.x=(int)x;layout.y=(int)y;manager.updateViewLayout(pointer,layout);}
     }
@@ -156,7 +203,7 @@ public class RemoteAccessibilityService extends AccessibilityService {
     }
     private void pointerMode(){directionalMode=false;navigationFocus=null;}
     private void handle(Protocol.Event e) {
-        if(pointer==null)return;
+        if(pointer==null){refreshTargetDisplay();if(pointer==null)return;}
         try {
             switch(e.type()) {
                 case "remote_update": if(!directionalMode)position(e.x(),e.y());break;

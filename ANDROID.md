@@ -38,9 +38,12 @@ Limitations:
 - The cyan pointer represents touch coordinates, not Android's native mouse cursor.
   Continuous native hover, dragging, long presses, media-key injection and gaming
   button holds are not implemented.
-- Display layout/rotation changes require Stop and reconnect. Display selection is
-  refreshed when opening the receiver activity. TV coordinates default to 1920x1080;
-  confirm/calibrate these against the actual TV app rather than panel resolution.
+- Pointer scaling uses the webOS app's 1920x1080 coordinate space and the live
+  selected Android display size, including 4K. Legacy manual coordinate settings
+  are ignored and removed on Connect. Display-size changes update automatically.
+  If DeX replaces its logical display, the receiver reattaches only when exactly
+  one display matches the selected display's name and external/built-in type.
+  Multiple matching displays require explicit selection and reconnect.
 - Background persistence and Samsung battery-management behaviour need testing.
 - Upstream TV UDP traffic has no cryptographic authentication. Use only on a trusted
   home LAN; do not port-forward these services. Choosing an IP is not authentication.

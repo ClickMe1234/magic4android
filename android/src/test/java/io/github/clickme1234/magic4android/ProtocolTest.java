@@ -12,6 +12,13 @@ public class ProtocolTest {
     @Test(expected=IllegalArgumentException.class) public void rejectsWrongSensorLayout() throws Exception {Protocol.decode("{\"t\":\"remote_update\",\"payload\":\"AAAAAA==\"}");}
     @Test public void keyReleaseIsNotKeyPress() throws Exception {assertFalse(Protocol.decode("{\"t\":\"input\",\"parameters\":{\"keyCode\":461,\"isDown\":false}}").down());}
     @Test public void scalesEndpointsAndClamps() {assertEquals(2559,Protocol.scale(1919,1920,2560),0);assertEquals(0,Protocol.scale(-9,1920,2560),0);assertEquals(2559,Protocol.scale(9000,1920,2560),0);}
+    @Test public void webosCoordinatesReachEveryCornerOfFourKOutput() {
+        assertEquals(3839,Protocol.scale(1919,1920,3840),0);
+        assertEquals(2159,Protocol.scale(1079,1080,2160),0);
+        assertEquals(0,Protocol.scale(0,1920,3840),0);
+        assertEquals(0,Protocol.scale(0,1080,2160),0);
+        assertEquals(1920.5,Protocol.scale(960,1920,3840),.01);
+    }
     @Test(expected=IllegalArgumentException.class) public void rejectsUnsupportedPacket() throws Exception {Protocol.decode("{\"t\":\"command\",\"shell\":\"anything\"}");}
     @Test public void wheelPreservesDirection() throws Exception {assertEquals(-120,Protocol.decode("{\"t\":\"wheel\",\"wheel\":{\"x\":12,\"y\":34,\"delta\":-120}}").delta());}
 }
