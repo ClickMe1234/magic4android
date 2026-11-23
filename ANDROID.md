@@ -20,6 +20,8 @@ Implemented:
 - Only the explicitly selected TV endpoint is accepted by the connected socket.
 - Coordinate-only sensor subscription, little-endian payload decoding and scaling.
 - Cyan pointer overlay and taps/scroll gestures on the chosen Android display.
+- Pointer hides after five seconds without movement or button input, and returns
+  on use. Repeated sensor samples, keepalives and one-pixel jitter do not keep it awake.
 - Arrows select visible accessible controls, with spatial fallback and scrolling
   at boundaries. OK activates that selection; waking the TV pointer returns to
   point-and-click. Red always clicks at the cyan dot.

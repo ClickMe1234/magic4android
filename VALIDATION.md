@@ -48,6 +48,9 @@ Local validation on Windows 11, JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36:
   Eleven JVM tests and lint/build pass, including a full-4K endpoint regression.
   Automatic reattachment after a physical/logical display replacement is implemented
   but not yet exercised by an unplug/replug test.
+- Idle pointer: installed update and verified overlay visible on remote input,
+  invisible after six seconds without interaction (five-second timer), and visible
+  again on the next input while the network connection remained active.
 
 Not validated: physical remote navigation reliability after this update, precise pointer
 alignment, background persistence, Wi-Fi reconnect, and reliable app navigation.

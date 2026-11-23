@@ -35,6 +35,15 @@ public class RemoteAccessibilityService extends AccessibilityService {
     private String targetDisplayName;
     private boolean trackingDisplay,externalTarget,hasSourcePosition;
     private int lastSourceX,lastSourceY;
+    private int lastActivityX,lastActivityY;
+    private boolean hasActivityPosition;
+    private final Runnable hideIdlePointer=()->{if(pointer!=null)pointer.setVisibility(View.INVISIBLE);};
+    private void pointerActivity() {
+        if(pointer==null)return;
+        pointer.setVisibility(View.VISIBLE);
+        main.removeCallbacks(hideIdlePointer);
+        main.postDelayed(hideIdlePointer,5000);
+    }
     private final DisplayManager.DisplayListener displayListener=new DisplayManager.DisplayListener() {
         public void onDisplayAdded(int id){refreshTargetDisplay();}
         public void onDisplayRemoved(int id){if(id==displayId){removePointer();refreshTargetDisplay();}}
@@ -64,9 +73,10 @@ public class RemoteAccessibilityService extends AccessibilityService {
         trackingDisplay=false;
         if(displayManager!=null)displayManager.unregisterDisplayListener(displayListener);
         generation++;client.close();main.removeCallbacksAndMessages(null);gestureBusy=false;pointerMode();
-        removePointer();hasSourcePosition=false;displayStatus="";status="Stopped";
+        removePointer();hasSourcePosition=false;hasActivityPosition=false;displayStatus="";status="Stopped";
     }
     private void removePointer() {
+        main.removeCallbacks(hideIdlePointer);
         if(pointer!=null){try{manager.removeView(pointer);}catch(Exception ignored){}pointer=null;}
         navigationFocus=null;gestureBusy=false;
     }
@@ -79,6 +89,7 @@ public class RemoteAccessibilityService extends AccessibilityService {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,android.graphics.PixelFormat.TRANSLUCENT);
         layout.gravity=Gravity.TOP|Gravity.LEFT;manager.addView(pointer,layout);
         updateOutputSize(display);
+        pointerActivity();
     }
     private void updateOutputSize(Display display) {
         DisplayMetrics metrics=new DisplayMetrics();display.getRealMetrics(metrics);
@@ -206,11 +217,22 @@ public class RemoteAccessibilityService extends AccessibilityService {
         if(pointer==null){refreshTargetDisplay();if(pointer==null)return;}
         try {
             switch(e.type()) {
-                case "remote_update": if(!directionalMode)position(e.x(),e.y());break;
-                case "mouseup": pointerMode();position(e.x(),e.y());click();break;
-                case "wheel": pointerMode();position(e.x(),e.y());gesture(y+(e.delta()>0?height*.25f:-height*.25f),200);break;
+                case "remote_update":
+                    if(!directionalMode) {
+                        // Repeated sensor samples/keepalives are not activity.
+                        // Anchor at the last meaningful move to ignore one-pixel jitter.
+                        if(!hasActivityPosition || Math.abs(e.x()-lastActivityX)>=2 || Math.abs(e.y()-lastActivityY)>=2) {
+                            lastActivityX=e.x();lastActivityY=e.y();hasActivityPosition=true;pointerActivity();
+                        }
+                        position(e.x(),e.y());
+                    }
+                    break;
+                case "mousedown": pointerMode();position(e.x(),e.y());pointerActivity();break;
+                case "mouseup": pointerMode();position(e.x(),e.y());pointerActivity();click();break;
+                case "wheel": pointerMode();position(e.x(),e.y());pointerActivity();gesture(y+(e.delta()>0?height*.25f:-height*.25f),200);break;
                 case "input":
                     if(!e.down())break;
+                    if(e.key()==1536 || e.key()==13 || e.key()==403 || e.key()==404 || e.key()==461 || (e.key()>=37 && e.key()<=40))pointerActivity();
                     android.util.Log.i("Magic4Android","Remote key "+e.key()+" for display "+displayId);
                     if(e.key()==1536)pointerMode();
                     else if(e.key()==461 || e.key()==404)back();
